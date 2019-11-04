@@ -469,18 +469,23 @@
 <span id="469">469</span>
 <span id="470">470</span>
 <span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// vim: tw=80</span>
 
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Async</span>, <span class="ident">Future</span>, <span class="ident">Poll</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Async</span>, <span class="ident">Future</span>, <span class="ident">Poll</span>, <span class="ident">sync</span>::<span class="ident">oneshot</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;tokio&quot;</span>)]</span> <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">future</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;tokio&quot;</span>)]</span> <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">IntoFuture</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">sync</span>::<span class="ident">oneshot</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">UnsafeCell</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">clone</span>::<span class="ident">Clone</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">VecDeque</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::{<span class="ident">Deref</span>, <span class="ident">DerefMut</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>;
+<span class="kw">use</span> <span class="ident">std</span>::{
+    <span class="ident">cell</span>::<span class="ident">UnsafeCell</span>,
+    <span class="ident">clone</span>::<span class="ident">Clone</span>,
+    <span class="ident">collections</span>::<span class="ident">VecDeque</span>,
+    <span class="ident">ops</span>::{<span class="ident">Deref</span>, <span class="ident">DerefMut</span>},
+    <span class="ident">sync</span>
+};
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">FutState</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;tokio&quot;</span>)]</span> <span class="kw">use</span> <span class="ident">tokio_executor</span>::{<span class="self">self</span>, <span class="ident">Executor</span>, <span class="ident">SpawnError</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;tokio&quot;</span>)]</span> <span class="kw">use</span> <span class="ident">tokio_current_thread</span> <span class="kw">as</span> <span class="ident">current_thread</span>;
@@ -500,13 +505,13 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> <span class="ident">Deref</span> <span class="kw">for</span> <span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">T</span>;
 
-    <span class="kw">fn</span> <span class="ident">deref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="ident">T</span> {
+    <span class="kw">fn</span> <span class="ident">deref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">T</span> {
         <span class="kw">unsafe</span> {<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">mutex</span>.<span class="ident">inner</span>.<span class="ident">data</span>.<span class="ident">get</span>()}
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> <span class="ident">DerefMut</span> <span class="kw">for</span> <span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">deref_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span> {
+    <span class="kw">fn</span> <span class="ident">deref_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span> {
         <span class="kw">unsafe</span> {<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">mutex</span>.<span class="ident">inner</span>.<span class="ident">data</span>.<span class="ident">get</span>()}
     }
 }
@@ -518,7 +523,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> <span class="ident">MutexFut</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">state</span>: <span class="ident">FutState</span>, <span class="ident">mutex</span>: <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">state</span>: <span class="ident">FutState</span>, <span class="ident">mutex</span>: <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="ident">MutexFut</span>{<span class="ident">state</span>, <span class="ident">mutex</span>}
     }
 }
@@ -526,28 +531,28 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">MutexFut</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">state</span> {
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">New</span> <span class="op">=&gt;</span> {
+            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">New</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="comment">// Mutex hasn&#39;t yet been modified; nothing to do</span>
             },
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">Pending</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">rx</span>) <span class="op">=&gt;</span> {
+            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">Pending</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">rx</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="ident">rx</span>.<span class="ident">close</span>();
                 <span class="kw">match</span> <span class="ident">rx</span>.<span class="ident">try_recv</span>() {
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(())) <span class="op">=&gt;</span> {
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(())) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="comment">// This future received ownership of the mutex, but got</span>
                         <span class="comment">// dropped before it was ever polled.  Release the</span>
                         <span class="comment">// mutex.</span>
                         <span class="self">self</span>.<span class="ident">mutex</span>.<span class="ident">unlock</span>()
                     },
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) <span class="op">=&gt;</span> {
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="comment">// Dropping the Future before it acquires the Mutex is</span>
                         <span class="comment">// equivalent to cancelling it.</span>
                     },
-                    <span class="prelude-val">Err</span>(<span class="ident">oneshot</span>::<span class="ident">Canceled</span>) <span class="op">=&gt;</span> {
+                    <span class="prelude-val">Err</span>(<span class="ident">oneshot</span>::<span class="ident">Canceled</span>) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="comment">// Never received ownership of the mutex</span>
                     }
                 }
             },
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">Acquired</span> <span class="op">=&gt;</span> {
+            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">Acquired</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="comment">// The MutexGuard will take care of releasing the Mutex</span>
             }
         }
@@ -558,9 +563,9 @@
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> ();
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> (<span class="ident">result</span>, <span class="ident">new_state</span>) <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">state</span> {
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">New</span> <span class="op">=&gt;</span> {
+            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">New</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mtx_data</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">mutex</span>.<span class="ident">inner</span>.<span class="ident">mutex</span>.<span class="ident">lock</span>()
                     .<span class="ident">expect</span>(<span class="string">&quot;sync::Mutex::lock&quot;</span>);
                 <span class="kw">if</span> <span class="ident">mtx_data</span>.<span class="ident">owned</span> {
@@ -576,15 +581,15 @@
                     (<span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="ident">guard</span>)), <span class="ident">FutState</span>::<span class="ident">Acquired</span>)
                 }
             },
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">Pending</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">rx</span>) <span class="op">=&gt;</span> {
+            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">Pending</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">rx</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">match</span> <span class="ident">rx</span>.<span class="ident">poll</span>() {
-                    <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>),
+                    <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">NotReady</span>),
                     <span class="comment">// It&#39;s impossible for receiver.poll() to return an error.</span>
                     <span class="comment">// The only way that would happen is if the sender got</span>
                     <span class="comment">// dropped.  But that can&#39;t happen because the Mutex owns</span>
                     <span class="comment">// the sender, and the Fut retains a clone of the Mutex</span>
-                    <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
-                    <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="kw">_</span>)) <span class="op">=&gt;</span> {
+                    <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
+                    <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="ident">FutState</span>::<span class="ident">Acquired</span>;
                         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="prelude-val">Ok</span>(<span class="ident">Async</span>::<span class="ident">Ready</span>(
                                 <span class="ident">MutexGuard</span>{<span class="ident">mutex</span>: <span class="self">self</span>.<span class="ident">mutex</span>.<span class="ident">clone</span>()}));
@@ -592,21 +597,21 @@
                     }  <span class="comment">//LCOV_EXCL_LINE    kcov false negative</span>
                 }
             },
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">Acquired</span> <span class="op">=&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Double-poll of ready Future&quot;</span>)
+            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FutState</span>::<span class="ident">Acquired</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Double-poll of ready Future&quot;</span>)
         };
         <span class="self">self</span>.<span class="ident">state</span> <span class="op">=</span> <span class="ident">new_state</span>;
         <span class="ident">result</span>
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Default</span>)]</span>
 <span class="kw">struct</span> <span class="ident">MutexData</span> {
     <span class="ident">owned</span>: <span class="ident">bool</span>,
     <span class="comment">// FIFO queue of waiting tasks.</span>
-    <span class="ident">waiters</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">oneshot</span>::<span class="ident">Sender</span><span class="op">&lt;</span>()<span class="op">&gt;&gt;</span>,
+    <span class="ident">waiters</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">oneshot</span>::<span class="ident">Sender</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Default</span>)]</span>
 <span class="kw">struct</span> <span class="ident">Inner</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> {
     <span class="ident">mutex</span>: <span class="ident">sync</span>::<span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">MutexData</span><span class="op">&gt;</span>,
     <span class="ident">data</span>: <span class="ident">UnsafeCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
@@ -630,13 +635,13 @@
 <span class="doccomment">/// [`std::sync::Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MutexWeak</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> {
-    <span class="ident">inner</span>: <span class="ident">sync</span>::<span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">Inner</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>,
+    <span class="ident">inner</span>: <span class="ident">sync</span>::<span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">Inner</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> <span class="ident">MutexWeak</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Tries to upgrade the `MutexWeak` to `Mutex`. If the `Mutex` was dropped </span>
     <span class="doccomment">/// then the function return `None`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">upgrade</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">upgrade</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">inner</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">upgrade</span>() {
             <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">Mutex</span>{<span class="ident">inner</span>})
         }
@@ -645,7 +650,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">MutexWeak</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">MutexWeak</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MutexWeak</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
         <span class="ident">MutexWeak</span> {<span class="ident">inner</span>: <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">clone</span>()}
     }
 }
@@ -665,8 +670,6 @@
 <span class="doccomment">/// # Examples</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// ```</span>
-<span class="doccomment">/// # extern crate futures;</span>
-<span class="doccomment">/// # extern crate futures_locks;</span>
 <span class="doccomment">/// # use futures_locks::*;</span>
 <span class="doccomment">/// # use futures::executor::{Spawn, spawn};</span>
 <span class="doccomment">/// # use futures::Future;</span>
@@ -677,20 +680,20 @@
 <span class="doccomment">/// assert_eq!(mtx.try_unwrap().unwrap(), 5);</span>
 <span class="doccomment">/// # }</span>
 <span class="doccomment">/// ```</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Default</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> {
-    <span class="ident">inner</span>: <span class="ident">sync</span>::<span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Inner</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>,
+    <span class="ident">inner</span>: <span class="ident">sync</span>::<span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Inner</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
         <span class="ident">Mutex</span> { <span class="ident">inner</span>: <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">clone</span>()}
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Create a new `Mutex` in the unlocked state.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">t</span>: <span class="ident">T</span>) <span class="op">-&gt;</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">t</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">mutex_data</span> <span class="op">=</span> <span class="ident">MutexData</span> {
             <span class="ident">owned</span>: <span class="bool-val">false</span>,
             <span class="ident">waiters</span>: <span class="ident">VecDeque</span>::<span class="ident">new</span>(),
@@ -705,15 +708,15 @@
     <span class="doccomment">/// Consumes the `Mutex` and returns the wrapped data.  If the `Mutex` still</span>
     <span class="doccomment">/// has multiple references (not necessarily locked), returns a copy of</span>
     <span class="doccomment">/// `self` instead.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_unwrap</span>(<span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_unwrap</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="ident">sync</span>::<span class="ident">Arc</span>::<span class="ident">try_unwrap</span>(<span class="self">self</span>.<span class="ident">inner</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">inner</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>({
+            <span class="prelude-val">Ok</span>(<span class="ident">inner</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>({
                 <span class="comment">// `unsafe` is no longer needed as of somewhere around 1.25.0.</span>
                 <span class="comment">// https://github.com/rust-lang/rust/issues/35067</span>
                 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_unsafe</span>)]</span>
                 <span class="kw">unsafe</span> { <span class="ident">inner</span>.<span class="ident">data</span>.<span class="ident">into_inner</span>() }
             }),
-            <span class="prelude-val">Err</span>(<span class="ident">arc</span>) <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">Mutex</span> {<span class="ident">inner</span>: <span class="ident">arc</span>})
+            <span class="prelude-val">Err</span>(<span class="ident">arc</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">Mutex</span> {<span class="ident">inner</span>: <span class="ident">arc</span>})
         }
     }
 }
@@ -722,8 +725,8 @@
     <span class="doccomment">/// Create a [`MutexWeak`] reference to this `Mutex`.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [`MutexWeak`]: struct.MutexWeak.html</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">downgrade</span>(<span class="ident">this</span>: <span class="kw-2">&amp;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">MutexWeak</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="ident">MutexWeak</span> {<span class="ident">inner</span>: <span class="ident">sync</span>::<span class="ident">Arc</span>::<span class="op">&lt;</span><span class="ident">Inner</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">this</span>.<span class="ident">inner</span>)}
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">downgrade</span>(<span class="ident">this</span>: <span class="kw-2">&amp;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MutexWeak</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+        <span class="ident">MutexWeak</span> {<span class="ident">inner</span>: <span class="ident">sync</span>::<span class="ident">Arc</span>::<span class="op">&lt;</span><span class="ident">Inner</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">this</span>.<span class="ident">inner</span>)}
     }
 
     <span class="doccomment">/// Returns a reference to the underlying data, if there are no other</span>
@@ -737,7 +740,6 @@
     <span class="doccomment">/// # Examples</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// # extern crate futures_locks;</span>
     <span class="doccomment">/// # use futures_locks::*;</span>
     <span class="doccomment">/// # fn main() {</span>
     <span class="doccomment">/// let mut mtx = Mutex::&lt;u32&gt;::new(0);</span>
@@ -745,7 +747,7 @@
     <span class="doccomment">/// assert_eq!(mtx.try_unwrap().unwrap(), 5);</span>
     <span class="doccomment">/// # }</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">inner</span>) <span class="op">=</span> <span class="ident">sync</span>::<span class="ident">Arc</span>::<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>) {
             <span class="kw">let</span> <span class="ident">lock_data</span> <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">mutex</span>.<span class="ident">get_mut</span>().<span class="ident">unwrap</span>();
             <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">inner</span>.<span class="ident">data</span>.<span class="ident">get</span>().<span class="ident">as_mut</span>() }.<span class="ident">unwrap</span>();
@@ -759,7 +761,7 @@
     <span class="doccomment">/// Acquires a `Mutex`, blocking the task in the meantime.  When the</span>
     <span class="doccomment">/// returned `Future` is ready, this task will have sole access to the</span>
     <span class="doccomment">/// protected data.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">MutexFut</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MutexFut</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
         <span class="ident">MutexFut</span>::<span class="ident">new</span>(<span class="ident">FutState</span>::<span class="ident">New</span>, <span class="self">self</span>.<span class="ident">clone</span>())
     }
 
@@ -770,7 +772,6 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Examples</span>
     <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// # extern crate futures_locks;</span>
     <span class="doccomment">/// # use futures_locks::*;</span>
     <span class="doccomment">/// # fn main() {</span>
     <span class="doccomment">/// let mut mtx = Mutex::&lt;u32&gt;::new(0);</span>
@@ -780,7 +781,7 @@
     <span class="doccomment">/// };</span>
     <span class="doccomment">/// # }</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mtx_data</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">mutex</span>.<span class="ident">lock</span>().<span class="ident">expect</span>(<span class="string">&quot;sync::Mutex::lock&quot;</span>);
         <span class="kw">if</span> <span class="ident">mtx_data</span>.<span class="ident">owned</span> {
             <span class="prelude-val">Err</span>(())
@@ -794,17 +795,19 @@
     <span class="kw">fn</span> <span class="ident">unlock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mtx_data</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">mutex</span>.<span class="ident">lock</span>().<span class="ident">expect</span>(<span class="string">&quot;sync::Mutex::lock&quot;</span>);
         <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">mtx_data</span>.<span class="ident">owned</span>);
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">tx</span>) <span class="op">=</span> <span class="ident">mtx_data</span>.<span class="ident">waiters</span>.<span class="ident">pop_front</span>() {
-            <span class="comment">// Send ownership to the waiter</span>
-            <span class="ident">tx</span>.<span class="ident">send</span>(()).<span class="ident">expect</span>(<span class="string">&quot;Sender::send&quot;</span>);
-        } <span class="kw">else</span> {
-            <span class="comment">// Relinquish ownership</span>
-            <span class="ident">mtx_data</span>.<span class="ident">owned</span> <span class="op">=</span> <span class="bool-val">false</span>;
+
+        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">tx</span>) <span class="op">=</span> <span class="ident">mtx_data</span>.<span class="ident">waiters</span>.<span class="ident">pop_front</span>() {
+            <span class="kw">if</span> <span class="ident">tx</span>.<span class="ident">send</span>(()).<span class="ident">is_ok</span>() {
+                <span class="kw">return</span>;
+            }
+            <span class="comment">// An error indicates that the waiter&#39;s future was dropped</span>
         }
+        <span class="comment">// Relinquish ownership</span>
+        <span class="ident">mtx_data</span>.<span class="ident">owned</span> <span class="op">=</span> <span class="bool-val">false</span>;
     }
 
     <span class="doccomment">/// Returns true if the two `Mutex` point to the same data else false.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ptr_eq</span>(<span class="ident">this</span>: <span class="kw-2">&amp;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ptr_eq</span>(<span class="ident">this</span>: <span class="kw-2">&amp;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="ident">sync</span>::<span class="ident">Arc</span>::<span class="ident">ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">this</span>.<span class="ident">inner</span>, <span class="kw-2">&amp;</span><span class="ident">other</span>.<span class="ident">inner</span>)
     }
 }
@@ -825,8 +828,6 @@
     <span class="doccomment">/// # Examples</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// # extern crate futures;</span>
-    <span class="doccomment">/// # extern crate futures_locks;</span>
     <span class="doccomment">/// # extern crate tokio_ as tokio;</span>
     <span class="doccomment">/// # use futures_locks::*;</span>
     <span class="doccomment">/// # use futures::{Future, IntoFuture, lazy};</span>
@@ -847,15 +848,15 @@
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">any</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;tokio&quot;</span>, <span class="ident">all</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nightly-docs&quot;</span>, <span class="ident">rustdoc</span>)))]</span>
     <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nightly-docs&quot;</span>, <span class="ident">doc</span>(<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;tokio&quot;</span>)))]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">B</span>, <span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>)
-        <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">R</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>, <span class="ident">SpawnError</span><span class="op">&gt;</span>
-        <span class="kw">where</span> <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">B</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">R</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>, <span class="ident">SpawnError</span><span class="op">&gt;</span>
+        <span class="kw">where</span> <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">B</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
               <span class="ident">B</span>: <span class="ident">IntoFuture</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">R</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
               <span class="op">&lt;</span><span class="ident">B</span> <span class="kw">as</span> <span class="ident">IntoFuture</span><span class="op">&gt;</span>::<span class="ident">Future</span>: <span class="ident">Send</span>,
               <span class="ident">R</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
               <span class="ident">E</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
               <span class="ident">T</span>: <span class="ident">Send</span>
     {
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">oneshot</span>::<span class="ident">channel</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;&gt;</span>();
+        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">oneshot</span>::<span class="ident">channel</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>();
         <span class="ident">tokio_executor</span>::<span class="ident">DefaultExecutor</span>::<span class="ident">current</span>().<span class="ident">spawn</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">lock</span>()
             .<span class="ident">and_then</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">data</span><span class="op">|</span> {
                 <span class="ident">f</span>(<span class="ident">data</span>).<span class="ident">into_future</span>()
@@ -877,8 +878,6 @@
     <span class="doccomment">/// # Examples</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// # extern crate futures;</span>
-    <span class="doccomment">/// # extern crate futures_locks;</span>
     <span class="doccomment">/// # extern crate tokio_ as tokio;</span>
     <span class="doccomment">/// # use futures_locks::*;</span>
     <span class="doccomment">/// # use futures::{Future, IntoFuture, lazy};</span>
@@ -901,13 +900,13 @@
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">any</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;tokio&quot;</span>, <span class="ident">all</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nightly-docs&quot;</span>, <span class="ident">rustdoc</span>)))]</span>
     <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nightly-docs&quot;</span>, <span class="ident">doc</span>(<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;tokio&quot;</span>)))]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_local</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">B</span>, <span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>)
-        <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">R</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>, <span class="ident">SpawnError</span><span class="op">&gt;</span>
-        <span class="kw">where</span> <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">B</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">R</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>, <span class="ident">SpawnError</span><span class="op">&gt;</span>
+        <span class="kw">where</span> <span class="ident">F</span>: <span class="ident">FnOnce</span>(<span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">B</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
               <span class="ident">B</span>: <span class="ident">IntoFuture</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">R</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
               <span class="ident">R</span>: <span class="lifetime">&#39;static</span>,
               <span class="ident">E</span>: <span class="lifetime">&#39;static</span>
     {
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">oneshot</span>::<span class="ident">channel</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;&gt;</span>();
+        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">oneshot</span>::<span class="ident">channel</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>();
         <span class="ident">current_thread</span>::<span class="ident">TaskExecutor</span>::<span class="ident">current</span>().<span class="ident">spawn_local</span>(<span class="ident">Box</span>::<span class="ident">new</span>(
             <span class="self">self</span>.<span class="ident">lock</span>()
             .<span class="ident">and_then</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">data</span><span class="op">|</span> {
@@ -939,7 +938,16 @@
         <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">Mutex</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>::<span class="ident">new</span>(<span class="number">0</span>);
         <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">m</span>);
     }
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">test_default</span>() {
+        <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">Mutex</span>::<span class="ident">default</span>();
+        <span class="kw">let</span> <span class="ident">value</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">m</span>.<span class="ident">try_unwrap</span>().<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">expected</span> <span class="op">=</span> <span class="ident">u32</span>::<span class="ident">default</span>();
+
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">expected</span>, <span class="ident">value</span>);
+    }
 }
 <span class="comment">// LCOV_EXCL_STOP</span>
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g., <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g., <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g., <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p></div></div></aside><script>window.rootPath = "../../";window.currentCrate = "futures_locks";</script><script src="../../aliases.js"></script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>
+</section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g., <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g., <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g., <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p><p>You can look for items with an exact name by putting double quotes around your request: <code>"string"</code></p><p>Look for items inside another one by searching for a path: <code>vec::Vec</code></p></div></div></aside><script>window.rootPath = "../../";window.currentCrate = "futures_locks";</script><script src="../../aliases.js"></script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>

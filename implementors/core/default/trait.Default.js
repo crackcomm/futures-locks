@@ -1,10 +1,10 @@
 (function() {var implementors = {};
 implementors["futures"] = [{text:"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> for <a class=\"struct\" href=\"futures/task/struct.AtomicTask.html\" title=\"struct futures::task::AtomicTask\">AtomicTask</a>",synthetic:false,types:["futures::task_impl::atomic_task::AtomicTask"]},];
+implementors["futures_locks"] = [{text:"impl&lt;T:&nbsp;<a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> + ?<a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html\" title=\"trait core::marker::Sized\">Sized</a>&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> for <a class=\"struct\" href=\"futures_locks/struct.Mutex.html\" title=\"struct futures_locks::Mutex\">Mutex</a>&lt;T&gt;",synthetic:false,types:["futures_locks::mutex::Mutex"]},{text:"impl&lt;T:&nbsp;<a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> + ?<a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html\" title=\"trait core::marker::Sized\">Sized</a>&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> for <a class=\"struct\" href=\"futures_locks/struct.RwLock.html\" title=\"struct futures_locks::RwLock\">RwLock</a>&lt;T&gt;",synthetic:false,types:["futures_locks::rwlock::RwLock"]},];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);
             } else {
                 window.pending_implementors = implementors;
             }
-        
-})()
+        })()
