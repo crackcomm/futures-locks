@@ -15,7 +15,7 @@ use std::{
 };
 use super::FutState;
 #[cfg(feature = "tokio")] use futures::FutureExt;
-#[cfg(feature = "tokio")] use tokio_::runtime::current_thread;
+#[cfg(feature = "tokio")] use tokio_::task;
 
 /// An RAII guard, much like `std::sync::RwLockReadGuard`.  The wrapped data can
 /// be accessed via its `Deref` implementation.
@@ -492,7 +492,7 @@ impl<T: 'static + ?Sized> RwLock<T> {
     /// ```
     /// # use futures_locks::*;
     /// # use futures::{Future, future::ready};
-    /// # use tokio_::runtime::current_thread::Runtime;
+    /// # use tokio_::runtime::Runtime;
     /// # fn main() {
     /// let rwlock = RwLock::<u32>::new(5);
     /// let mut rt = Runtime::new().unwrap();
@@ -539,11 +539,11 @@ impl<T: 'static + ?Sized> RwLock<T> {
     /// # use futures_locks::*;
     /// # use futures::{Future, future::ready};
     /// # use std::rc::Rc;
-    /// # use tokio_::runtime::current_thread;
+    /// # use tokio_::runtime::Runtime;
     /// # fn main() {
     /// // Note: Rc is not `Send`
     /// let rwlock = RwLock::<Rc<u32>>::new(Rc::new(5));
-    /// let mut rt = current_thread::Runtime::new().unwrap();
+    /// let mut rt = Runtime::new().unwrap();
     /// let r = rt.block_on(async {
     ///     rwlock.with_read_local(|mut guard| {
     ///         ready(**guard)
@@ -561,7 +561,7 @@ impl<T: 'static + ?Sized> RwLock<T> {
               R: 'static
     {
         let (tx, rx) = oneshot::channel::<R>();
-        current_thread::spawn(
+        task::spawn_local(
             self.read()
             .then(move |data| {
                 f(data)
@@ -594,7 +594,7 @@ impl<T: 'static + ?Sized> RwLock<T> {
     /// ```
     /// # use futures::{Future, future::ready};
     /// # use futures_locks::*;
-    /// # use tokio_::runtime::current_thread::Runtime;
+    /// # use tokio_::runtime::Runtime;
     /// # fn main() {
     /// let rwlock = RwLock::<u32>::new(0);
     /// let mut rt = Runtime::new().unwrap();
@@ -642,11 +642,11 @@ impl<T: 'static + ?Sized> RwLock<T> {
     /// # use futures::{Future, future::ready};
     /// # use futures_locks::*;
     /// # use std::rc::Rc;
-    /// # use tokio_::runtime::current_thread;
+    /// # use tokio_::runtime::Runtime;
     /// # fn main() {
     /// // Note: Rc is not `Send`
     /// let rwlock = RwLock::<Rc<u32>>::new(Rc::new(0));
-    /// let mut rt = current_thread::Runtime::new().unwrap();
+    /// let mut rt = Runtime::new().unwrap();
     /// let r = rt.block_on(async {
     ///     rwlock.with_write_local(|mut guard| {
     ///         *Rc::get_mut(&mut *guard).unwrap() += 5;
@@ -665,7 +665,7 @@ impl<T: 'static + ?Sized> RwLock<T> {
               R: 'static
     {
         let (tx, rx) = oneshot::channel::<R>();
-        current_thread::spawn(
+        task::spawn_local(
             self.write()
             .then(move |data| {
                 f(data)
