@@ -561,7 +561,8 @@ impl<T: 'static + ?Sized> RwLock<T> {
               R: 'static
     {
         let (tx, rx) = oneshot::channel::<R>();
-        task::spawn_local(
+        let local = task::LocalSet::new();
+        local.spawn_local(
             self.read()
             .then(move |data| {
                 f(data)
@@ -574,7 +575,7 @@ impl<T: 'static + ?Sized> RwLock<T> {
         );
         // We control the sender so we're sure it won't be dropped before
         // sending so we can unwrap safely
-        rx.map(Result::unwrap)
+        local.then(move |_| rx.map(Result::unwrap))
     }
 
     /// Acquires a `RwLock` exclusively and performs a computation on its
@@ -665,7 +666,8 @@ impl<T: 'static + ?Sized> RwLock<T> {
               R: 'static
     {
         let (tx, rx) = oneshot::channel::<R>();
-        task::spawn_local(
+        let local = task::LocalSet::new();
+        local.spawn_local(
             self.write()
             .then(move |data| {
                 f(data)
@@ -678,7 +680,7 @@ impl<T: 'static + ?Sized> RwLock<T> {
         );
         // We control the sender so we're sure it won't be dropped before
         // sending so we can unwrap safely
-        rx.map(Result::unwrap)
+        local.then(move |_| rx.map(Result::unwrap))
     }
 }
 
