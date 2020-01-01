@@ -1,9 +1,12 @@
 // vim: tw=80
 
+use super::FutState;
+#[cfg(feature = "tokio")]
+use futures::FutureExt;
 use futures::{
-    Future,
     channel::oneshot,
-    task::{Context, Poll}
+    task::{Context, Poll},
+    Future,
 };
 use std::{
     cell::UnsafeCell,
@@ -13,22 +16,19 @@ use std::{
     pin::Pin,
     sync,
 };
-use super::FutState;
-#[cfg(feature = "tokio")] use futures::FutureExt;
-#[cfg(feature = "tokio")] use tokio_::runtime::current_thread;
 
 /// An RAII guard, much like `std::sync::RwLockReadGuard`.  The wrapped data can
 /// be accessed via its `Deref` implementation.
 #[derive(Debug)]
 pub struct RwLockReadGuard<T: ?Sized> {
-    rwlock: RwLock<T>
+    rwlock: RwLock<T>,
 }
 
 impl<T: ?Sized> Deref for RwLockReadGuard<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        unsafe {&*self.rwlock.inner.data.get()}
+        unsafe { &*self.rwlock.inner.data.get() }
     }
 }
 
@@ -42,20 +42,20 @@ impl<T: ?Sized> Drop for RwLockReadGuard<T> {
 /// can be accessed via its `Deref`  and `DerefMut` implementations.
 #[derive(Debug)]
 pub struct RwLockWriteGuard<T: ?Sized> {
-    rwlock: RwLock<T>
+    rwlock: RwLock<T>,
 }
 
 impl<T: ?Sized> Deref for RwLockWriteGuard<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        unsafe {&*self.rwlock.inner.data.get()}
+        unsafe { &*self.rwlock.inner.data.get() }
     }
 }
 
 impl<T: ?Sized> DerefMut for RwLockWriteGuard<T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe {&mut *self.rwlock.inner.data.get()}
+        unsafe { &mut *self.rwlock.inner.data.get() }
     }
 }
 
@@ -73,7 +73,7 @@ pub struct RwLockReadFut<T: ?Sized> {
 
 impl<T: ?Sized> RwLockReadFut<T> {
     fn new(state: FutState, rwlock: RwLock<T>) -> Self {
-        RwLockReadFut{state, rwlock}
+        RwLockReadFut { state, rwlock }
     }
 }
 
@@ -82,7 +82,7 @@ impl<T: ?Sized> Drop for RwLockReadFut<T> {
         match &mut self.state {
             &mut FutState::New => {
                 // RwLock hasn't yet been modified; nothing to do
-            },
+            }
             &mut FutState::Pending(ref mut rx) => {
                 rx.close();
                 match rx.try_recv() {
@@ -91,16 +91,16 @@ impl<T: ?Sized> Drop for RwLockReadFut<T> {
                         // dropped before it was ever polled.  Release the
                         // lock.
                         self.rwlock.unlock_reader()
-                    },
+                    }
                     Ok(None) => {
                         // Dropping the Future before it acquires the lock is
                         // equivalent to cancelling it.
-                    },
+                    }
                     Err(oneshot::Canceled) => {
                         // Never received ownership of the lock
                     }
                 }
-            },
+            }
             &mut FutState::Acquired => {
                 // The RwLockReadGuard will take care of releasing the RwLock
             }
@@ -114,8 +114,7 @@ impl<T: ?Sized> Future for RwLockReadFut<T> {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let (result, new_state) = match &mut self.state {
             &mut FutState::New => {
-                let mut lock_data = self.rwlock.inner.mutex.lock()
-                    .expect("sync::Mutex::lock");
+                let mut lock_data = self.rwlock.inner.mutex.lock().expect("sync::Mutex::lock");
                 if lock_data.exclusive {
                     let (tx, mut rx) = oneshot::channel::<()>();
                     lock_data.read_waiters.push_back(tx);
@@ -125,23 +124,25 @@ impl<T: ?Sized> Future for RwLockReadFut<T> {
                     (Poll::Pending, FutState::Pending(rx))
                 } else {
                     lock_data.num_readers += 1;
-                    let guard = RwLockReadGuard{rwlock: self.rwlock.clone()};
+                    let guard = RwLockReadGuard {
+                        rwlock: self.rwlock.clone(),
+                    };
                     (Poll::Ready(guard), FutState::Acquired)
                 }
-            },
+            }
             &mut FutState::Pending(ref mut rx) => {
                 match Pin::new(rx).poll(cx) {
                     Poll::Pending => return Poll::Pending,
                     Poll::Ready(_) => {
                         let state = FutState::Acquired;
-                        let result = Poll::Ready(
-                            RwLockReadGuard{rwlock: self.rwlock.clone()}
-                        );
+                        let result = Poll::Ready(RwLockReadGuard {
+                            rwlock: self.rwlock.clone(),
+                        });
                         (result, state)
-                    }  // LCOV_EXCL_LINE   kcov false negative
+                    } // LCOV_EXCL_LINE   kcov false negative
                 }
-            },
-            &mut FutState::Acquired => panic!("Double-poll of ready Future")
+            }
+            &mut FutState::Acquired => panic!("Double-poll of ready Future"),
         };
         self.state = new_state;
         result
@@ -156,7 +157,7 @@ pub struct RwLockWriteFut<T: ?Sized> {
 
 impl<T: ?Sized> RwLockWriteFut<T> {
     fn new(state: FutState, rwlock: RwLock<T>) -> Self {
-        RwLockWriteFut{state, rwlock}
+        RwLockWriteFut { state, rwlock }
     }
 }
 
@@ -165,7 +166,7 @@ impl<T: ?Sized> Drop for RwLockWriteFut<T> {
         match &mut self.state {
             &mut FutState::New => {
                 // RwLock hasn't yet been modified; nothing to do
-            },
+            }
             &mut FutState::Pending(ref mut rx) => {
                 rx.close();
                 match rx.try_recv() {
@@ -174,16 +175,16 @@ impl<T: ?Sized> Drop for RwLockWriteFut<T> {
                         // dropped before it was ever polled.  Release the
                         // lock.
                         self.rwlock.unlock_writer()
-                    },
+                    }
                     Ok(None) => {
                         // Dropping the Future before it acquires the lock is
                         // equivalent to cancelling it.
-                    },
+                    }
                     Err(oneshot::Canceled) => {
                         // Never received ownership of the lock
                     }
                 }
-            },
+            }
             &mut FutState::Acquired => {
                 // The RwLockWriteGuard will take care of releasing the RwLock
             }
@@ -197,8 +198,7 @@ impl<T: ?Sized> Future for RwLockWriteFut<T> {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let (result, new_state) = match &mut self.state {
             &mut FutState::New => {
-                let mut lock_data = self.rwlock.inner.mutex.lock()
-                    .expect("sync::Mutex::lock");
+                let mut lock_data = self.rwlock.inner.mutex.lock().expect("sync::Mutex::lock");
                 if lock_data.exclusive || lock_data.num_readers > 0 {
                     let (tx, mut rx) = oneshot::channel::<()>();
                     lock_data.write_waiters.push_back(tx);
@@ -208,23 +208,25 @@ impl<T: ?Sized> Future for RwLockWriteFut<T> {
                     (Poll::Pending, FutState::Pending(rx))
                 } else {
                     lock_data.exclusive = true;
-                    let guard = RwLockWriteGuard{rwlock: self.rwlock.clone()};
+                    let guard = RwLockWriteGuard {
+                        rwlock: self.rwlock.clone(),
+                    };
                     (Poll::Ready(guard), FutState::Acquired)
                 }
-            },
+            }
             &mut FutState::Pending(ref mut rx) => {
                 match Pin::new(rx).poll(cx) {
                     Poll::Pending => return Poll::Pending,
                     Poll::Ready(_) => {
                         let state = FutState::Acquired;
-                        let result = Poll::Ready(
-                            RwLockWriteGuard{rwlock: self.rwlock.clone()}
-                        );
+                        let result = Poll::Ready(RwLockWriteGuard {
+                            rwlock: self.rwlock.clone(),
+                        });
                         (result, state)
-                    }  // LCOV_EXCL_LINE   kcov false negative
+                    } // LCOV_EXCL_LINE   kcov false negative
                 }
-            },
-            &mut FutState::Acquired => panic!("Double-poll of ready Future")
+            }
+            &mut FutState::Acquired => panic!("Double-poll of ready Future"),
         };
         self.state = new_state;
         result
@@ -267,7 +269,9 @@ pub struct RwLock<T: ?Sized> {
 
 impl<T: ?Sized> Clone for RwLock<T> {
     fn clone(&self) -> RwLock<T> {
-        RwLock { inner: self.inner.clone()}
+        RwLock {
+            inner: self.inner.clone(),
+        }
     }
 }
 
@@ -279,12 +283,14 @@ impl<T> RwLock<T> {
             num_readers: 0,
             read_waiters: VecDeque::new(),
             write_waiters: VecDeque::new(),
-        };  // LCOV_EXCL_LINE   kcov false negative
+        }; // LCOV_EXCL_LINE   kcov false negative
         let inner = Inner {
             mutex: sync::Mutex::new(lock_data),
-            data: UnsafeCell::new(t)
-        };  // LCOV_EXCL_LINE   kcov false negative
-        RwLock { inner: sync::Arc::new(inner)}
+            data: UnsafeCell::new(t),
+        }; // LCOV_EXCL_LINE   kcov false negative
+        RwLock {
+            inner: sync::Arc::new(inner),
+        }
     }
 
     /// Consumes the `RwLock` and returns the wrapped data.  If the `RwLock`
@@ -296,9 +302,11 @@ impl<T> RwLock<T> {
                 // `unsafe` is no longer needed as of somewhere around 1.25.0.
                 // https://github.com/rust-lang/rust/issues/35067
                 #[allow(unused_unsafe)]
-                unsafe { inner.data.into_inner() }
+                unsafe {
+                    inner.data.into_inner()
+                }
             }),
-            Err(arc) => Err(RwLock {inner: arc})
+            Err(arc) => Err(RwLock { inner: arc }),
         }
     }
 }
@@ -353,7 +361,7 @@ impl<T: ?Sized> RwLock<T> {
     ///
     /// ```
     pub fn read(&self) -> RwLockReadFut<T> {
-        return RwLockReadFut::new(FutState::New, self.clone())
+        return RwLockReadFut::new(FutState::New, self.clone());
     }
 
     /// Acquire the `RwLock` exclusively, read-write, blocking the task in the
@@ -376,7 +384,7 @@ impl<T: ?Sized> RwLock<T> {
     ///
     /// ```
     pub fn write(&self) -> RwLockWriteFut<T> {
-        return RwLockWriteFut::new(FutState::New, self.clone())
+        return RwLockWriteFut::new(FutState::New, self.clone());
     }
 
     /// Attempts to acquire the `RwLock` nonexclusively.
@@ -402,7 +410,9 @@ impl<T: ?Sized> RwLock<T> {
             Err(())
         } else {
             lock_data.num_readers += 1;
-            Ok(RwLockReadGuard{rwlock: self.clone()})
+            Ok(RwLockReadGuard {
+                rwlock: self.clone(),
+            })
         }
     }
 
@@ -429,7 +439,9 @@ impl<T: ?Sized> RwLock<T> {
             Err(())
         } else {
             lock_data.exclusive = true;
-            Ok(RwLockWriteGuard{rwlock: self.clone()})
+            Ok(RwLockWriteGuard {
+                rwlock: self.clone(),
+            })
         }
     }
 
@@ -444,7 +456,7 @@ impl<T: ?Sized> RwLock<T> {
             while let Some(tx) = lock_data.write_waiters.pop_front() {
                 if tx.send(()).is_ok() {
                     lock_data.exclusive = true;
-                    return
+                    return;
                 }
             }
         }
@@ -486,94 +498,25 @@ impl<T: 'static + ?Sized> RwLock<T> {
     /// owning task gets notified.  So it's best to hold `RwLock`s within their
     /// own tasks, lest their continuations get blocked by slow stacked
     /// combinators.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use futures_locks::*;
-    /// # use futures::{Future, future::ready};
-    /// # use tokio_::runtime::current_thread::Runtime;
-    /// # fn main() {
-    /// let rwlock = RwLock::<u32>::new(5);
-    /// let mut rt = Runtime::new().unwrap();
-    /// let r = rt.block_on(async {
-    ///     rwlock.with_read(|mut guard| {
-    ///         ready(*guard)
-    ///     }).await
-    /// });
-    /// assert_eq!(r, 5);
-    /// # }
-    /// ```
     #[cfg(any(feature = "tokio", all(feature = "nightly-docs", rustdoc)))]
     #[cfg_attr(feature = "nightly-docs", doc(cfg(feature = "tokio")))]
-    pub fn with_read<B, F, R>(&self, f: F)
-        -> impl Future<Output = R>
-        where F: FnOnce(RwLockReadGuard<T>) -> B + Send + 'static,
-              B: Future<Output = R> + Send + 'static,
-              R: Send + 'static,
-              T: Send
+    pub fn with_read<B, F, R>(&self, f: F) -> impl Future<Output = R>
+    where
+        F: FnOnce(RwLockReadGuard<T>) -> B + Send + 'static,
+        B: Future<Output = R> + Send + 'static,
+        R: Send + 'static,
+        T: Send,
     {
         let (tx, rx) = oneshot::channel::<R>();
-        tokio_::spawn(self.read()
-            .then(move |data| {
-                f(data)
-                .map(move |result| {
-                    //Swallow errors; there's nothing to do if the
-                    //receiver got cancelled
-                   let _ = tx.send(result);
-               })
+        tokio_::spawn(self.read().then(move |data| {
+            f(data).map(move |result| {
+                //Swallow errors; there's nothing to do if the
+                //receiver got cancelled
+                let _ = tx.send(result);
             })
-        );
+        }));
         //We control the sender so we're sure it won't be dropped before
         //sending so we can unwrap safely
-        rx.map(Result::unwrap)
-    }
-
-    /// Like [`with_read`](#method.with_read) but for Futures that aren't
-    /// `Send`.  Spawns a new task on a single-threaded Runtime to complete the
-    /// Future.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use futures_locks::*;
-    /// # use futures::{Future, future::ready};
-    /// # use std::rc::Rc;
-    /// # use tokio_::runtime::current_thread;
-    /// # fn main() {
-    /// // Note: Rc is not `Send`
-    /// let rwlock = RwLock::<Rc<u32>>::new(Rc::new(5));
-    /// let mut rt = current_thread::Runtime::new().unwrap();
-    /// let r = rt.block_on(async {
-    ///     rwlock.with_read_local(|mut guard| {
-    ///         ready(**guard)
-    ///     }).await
-    /// });
-    /// assert_eq!(r, 5);
-    /// # }
-    /// ```
-    #[cfg(any(feature = "tokio", all(feature = "nightly-docs", rustdoc)))]
-    #[cfg_attr(feature = "nightly-docs", doc(cfg(feature = "tokio")))]
-    pub fn with_read_local<B, F, R>(&self, f: F)
-        -> impl Future<Output = R>
-        where F: FnOnce(RwLockReadGuard<T>) -> B + 'static + Unpin,
-              B: Future<Output = R> + 'static,
-              R: 'static
-    {
-        let (tx, rx) = oneshot::channel::<R>();
-        current_thread::spawn(
-            self.read()
-            .then(move |data| {
-                f(data)
-                .map(move |result| {
-                    //Swallow errors; there's nothing to do if the
-                    //receiver got cancelled
-                   let _ = tx.send(result);
-               })
-            })
-        );
-        // We control the sender so we're sure it won't be dropped before
-        // sending so we can unwrap safely
         rx.map(Result::unwrap)
     }
 
@@ -588,96 +531,25 @@ impl<T: 'static + ?Sized> RwLock<T> {
     /// owning task gets notified.  So it's best to hold `RwLock`s within their
     /// own tasks, lest their continuations get blocked by slow stacked
     /// combinators.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use futures::{Future, future::ready};
-    /// # use futures_locks::*;
-    /// # use tokio_::runtime::current_thread::Runtime;
-    /// # fn main() {
-    /// let rwlock = RwLock::<u32>::new(0);
-    /// let mut rt = Runtime::new().unwrap();
-    /// let r = rt.block_on(async {
-    ///     rwlock.with_write(|mut guard| {
-    ///         *guard += 5;
-    ///         ready(())
-    ///     }).await
-    /// });
-    /// assert_eq!(rwlock.try_unwrap().unwrap(), 5);
-    /// # }
-    /// ```
     #[cfg(any(feature = "tokio", all(feature = "nightly-docs", rustdoc)))]
     #[cfg_attr(feature = "nightly-docs", doc(cfg(feature = "tokio")))]
-    pub fn with_write<B, F, R>(&self, f: F)
-        -> impl Future<Output = R>
-        where F: FnOnce(RwLockWriteGuard<T>) -> B + Send + 'static,
-              B: Future<Output = R> + Send + 'static,
-              R: Send + 'static,
-              T: Send
+    pub fn with_write<B, F, R>(&self, f: F) -> impl Future<Output = R>
+    where
+        F: FnOnce(RwLockWriteGuard<T>) -> B + Send + 'static,
+        B: Future<Output = R> + Send + 'static,
+        R: Send + 'static,
+        T: Send,
     {
         let (tx, rx) = oneshot::channel::<R>();
-        tokio_::spawn(self.write()
-            .then(move |data| {
-                f(data)
-                .map(move |result| {
-                    //Swallow errors; there's nothing to do if the
-                    //receiver got cancelled
-                   let _ = tx.send(result);
-               })
+        tokio_::spawn(self.write().then(move |data| {
+            f(data).map(move |result| {
+                //Swallow errors; there's nothing to do if the
+                //receiver got cancelled
+                let _ = tx.send(result);
             })
-        );
+        }));
         //We control the sender so we're sure it won't be dropped before
         //sending so we can unwrap safely
-        rx.map(Result::unwrap)
-    }
-
-    /// Like [`with_write`](#method.with_write) but for Futures that aren't
-    /// `Send`.  Spawns a new task on a single-threaded Runtime to complete the
-    /// Future.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use futures::{Future, future::ready};
-    /// # use futures_locks::*;
-    /// # use std::rc::Rc;
-    /// # use tokio_::runtime::current_thread;
-    /// # fn main() {
-    /// // Note: Rc is not `Send`
-    /// let rwlock = RwLock::<Rc<u32>>::new(Rc::new(0));
-    /// let mut rt = current_thread::Runtime::new().unwrap();
-    /// let r = rt.block_on(async {
-    ///     rwlock.with_write_local(|mut guard| {
-    ///         *Rc::get_mut(&mut *guard).unwrap() += 5;
-    ///         ready(())
-    ///     }).await
-    /// });
-    /// assert_eq!(*rwlock.try_unwrap().unwrap(), 5);
-    /// # }
-    /// ```
-    #[cfg(any(feature = "tokio", all(feature = "nightly-docs", rustdoc)))]
-    #[cfg_attr(feature = "nightly-docs", doc(cfg(feature = "tokio")))]
-    pub fn with_write_local<B, F, R>(&self, f: F)
-        -> impl Future<Output = R>
-        where F: FnOnce(RwLockWriteGuard<T>) -> B + 'static + Unpin,
-              B: Future<Output = R> + 'static,
-              R: 'static
-    {
-        let (tx, rx) = oneshot::channel::<R>();
-        current_thread::spawn(
-            self.write()
-            .then(move |data| {
-                f(data)
-                .map(move |result| {
-                    //Swallow errors; there's nothing to do if the
-                    //receiver got cancelled
-                   let _ = tx.send(result);
-               })
-            })
-        );
-        // We control the sender so we're sure it won't be dropped before
-        // sending so we can unwrap safely
         rx.map(Result::unwrap)
     }
 }
